@@ -69,4 +69,4 @@ CREATE TABLE Subscription(
        PRIMARY KEY (SubscriptionID)
 );
 
-drop table users,staff,student,friend,post,posttag,likes,event,attending,subscription;
+-- drop table users,staff,student,friend,post,posttag,likes,event,attending,subscription;
