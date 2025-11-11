@@ -1,0 +1,72 @@
+CREATE TABLE Users(
+       UserID INTEGER PRIMARY KEY,
+       name varchar(50)
+);
+
+CREATE TABLE Staff(
+       UserID INTEGER REFERENCES Users(UserID),
+       Department Varchar(100)
+);
+
+CREATE TABLE Student(
+       UserID INTEGER REFERENCES Users(UserID),
+       Program Varchar(100)
+);
+
+CREATE TABLE Friend(
+       UserID INTEGER REFERENCES Users(UserID),
+       FriendID INTEGER REFERENCES Users(UserID),
+       PRIMARY KEY (UserID, FriendID)
+);
+
+CREATE TABLE Post(
+       PostID INTEGER PRIMARY KEY,
+       date DATE,
+       UserID INTEGER,
+       Title VARCHAR(200),
+       Place VARCHAR(200),
+       Text VARCHAR(100),
+       URL VARCHAR(100)
+);
+
+CREATE TABLE PostTag
+       (PostID INTEGER,
+       Tag varchar(50),
+       PRIMARY KEY (PostID, Tag),
+       CONSTRAINT id
+           FOREIGN KEY(PostID)
+                   REFERENCES Post(PostID)
+);
+
+CREATE TABLE Likes(
+       UserID INTEGER REFERENCES Users(UserID),
+       PostID INTEGER REFERENCES Post(PostID),
+       date DATE,
+       PRIMARY KEY (UserID, PostID)
+);
+
+CREATE TABLE Event(
+       EventID INTEGER PRIMARY KEY,
+       Place Varchar(200),
+       SDate TIMESTAMP,
+       EDate TIMESTAMP,
+       creatorID INTEGER REFERENCES Users(UserID),
+       Title Varchar(200)
+);
+
+CREATE TABLE attending(
+       UserID INTEGER REFERENCES Users(UserID),
+       EventID INTEGER REFERENCES Event(EventID),
+       PRIMARY KEY(UserID, EventID)
+);
+
+
+CREATE TABLE Subscription(
+       SubscriptionID INTEGER,
+       PaymentMethod Varchar(200),
+       UserID INTEGER REFERENCES Users(UserID),
+       date DATE,
+       PRIMARY KEY (SubscriptionID)
+);
+
+drop table users,staff,student,friend,post,posttag,likes,event,attending,subscription;
