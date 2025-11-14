@@ -105,7 +105,7 @@ ORDER BY jr.name;
 ## Task5
 <pre>
   WITH RECURSIVE friend_chain AS (
-  -- Step 1: start with Anas
+  -- start with Anas
   SELECT 
     u.name,
     f.userid,
@@ -116,15 +116,15 @@ ORDER BY jr.name;
 
   UNION ALL
 
-  -- Step 2: keep finding the next friend in the chain
+  -- keep finding the next friend in the chain
   SELECT 
     u.name,
     f.userid,
     f.friendid
   FROM friend f
   JOIN users u ON u.userid = f.userid
-  JOIN friend_chain c ON f.userid = c.friendid      -- continue chain
-  WHERE NOT EXISTS (                                -- make sure X is NOT friend with Z
+  JOIN friend_chain c ON f.userid = c.friendid
+  WHERE NOT EXISTS (
     SELECT 1
     FROM friend skip
     WHERE skip.userid = c.userid
@@ -134,4 +134,31 @@ ORDER BY jr.name;
 
 SELECT * FROM friend_chain;
 
+</pre>
+
+## P+ Assignment
+<pre>
+WITH march_posts AS (
+  SELECT p.userid, p.postid
+  FROM post p
+  WHERE date_part('month', p.date) = 3
+),
+authors AS (
+  SELECT DISTINCT u.userid, u.name
+  FROM users u
+  JOIN march_posts mp USING (userid)
+),
+likes_totals AS (
+  -- count all likes on those March posts (regardless of when the like occurred)
+  SELECT mp.userid, COUNT(l.postid) AS total_likes
+  FROM march_posts mp
+  LEFT JOIN likes l ON l.postid = mp.postid
+  GROUP BY mp.userid
+)
+SELECT
+  a.name AS user,
+  CASE WHEN COALESCE(lt.total_likes, 0) >= 50 THEN 't' ELSE 'f' END AS t
+FROM authors a
+LEFT JOIN likes_totals lt USING (userid)
+ORDER BY a.name;
 </pre>
