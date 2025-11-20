@@ -6,16 +6,16 @@
 - ORDER BY: Sorts the final output alphabetically by the post title.  
 <pre>
 SELECT
-    p.title,
-    string_agg(pt.tag, ', ' ORDER BY pt.tag) AS tags
+    post.title,
+    string_agg(posttag.tag, ', ' ORDER BY posttag.tag) AS tags
 FROM
-    post p
+    post
 JOIN
-    posttag pt ON p.postid = pt.postid
+    posttag ON post.postid = posttag.postid
 GROUP BY
-    p.title
+    post.title
 ORDER BY	
-    p.title;
+    post.title;
 </pre>
 
 ## Task2
@@ -32,25 +32,19 @@ ORDER BY
     rank
 FROM (
     SELECT
-        p.postid,
-        p.title,
-        DENSE_RANK() OVER (ORDER BY COUNT(l.postid) DESC) AS rank
-    FROM
-        post p
-    JOIN
-        posttag pt ON p.postid = pt.postid
-    LEFT JOIN
-        likes l ON p.postid = l.postid
-    WHERE
-        lower(pt.tag) = '#leadership'
-    GROUP BY
-        p.postid, p.title
+        post.postid,
+        post.title,
+        DENSE_RANK() OVER (ORDER BY COUNT(likes.postid) DESC) AS rank
+    FROM post
+    JOIN posttag ON post.postid = posttag.postid
+    LEFT JOIN likes ON post.postid = likes.postid
+    WHERE posttag.tag = '#leadership'
+    GROUP BY post.postid, post.title
 ) AS ranked
 WHERE
     rank <= 5
 ORDER BY
-    rank,
-    postid;
+    rank;
 </pre>
 
 ## Task3
@@ -61,39 +55,34 @@ ORDER BY
 - date_part('week', ...) extracts week numbers for comparison.  
 
 <pre>
-  SELECT
-  w.week,
-
-  (
-    SELECT COUNT(*)
-    FROM (
-      SELECT MIN(date) AS first_date
-      FROM subscription
-      GROUP BY userid
-    ) s
-    WHERE date_part('week', s.first_date) = w.week
-  ) AS new_customers,
-
-  (
-    SELECT COUNT(*)
-    FROM subscription s
-    JOIN (
-      SELECT userid, MIN(date) AS first_date
-      FROM subscription
-      GROUP BY userid
-    ) f USING (userid)
-    WHERE s.date > f.first_date
-      AND date_part('week', s.date) = w.week
-  ) AS kept_customers,
-
-  (
-    SELECT COUNT(*)
-    FROM post p
-    WHERE date_part('week', p.date) = w.week
-  ) AS activity
-
-FROM generate_series(1, 30) AS w(week)
-ORDER BY w.week;
+WITH first_sub AS (
+    SELECT
+        userid,
+        MIN(date) AS first_date
+    FROM subscription
+    GROUP BY userid
+)
+SELECT
+    week,
+    (
+        SELECT COUNT(*)
+        FROM first_sub
+        WHERE date_part('week', first_date) = week
+    ) AS new_customers,
+    (
+        SELECT COUNT(*)
+        FROM first_sub
+        JOIN subscription ON subscription.userid = first_sub.userid
+        WHERE subscription.date > first_sub.first_date
+          AND date_part('week', subscription.date) = week
+    ) AS kept_customers,
+    (
+        SELECT COUNT(*)
+        FROM post
+        WHERE date_part('week', post.date) = week
+    ) AS activity
+FROM generate_series(1, 30) AS week
+ORDER BY week;
 </pre>
 
 ## Task4
@@ -103,25 +92,26 @@ ORDER BY w.week;
 - EVERY(...) checks if all joined rows have a non-NULL friendid.  
 - GROUP BY aggregates per user.
 
-<pre>WITH first_reg AS (
+<pre>
+WITH first_reg AS (
   SELECT userid, MIN(date) AS registration_date
   FROM subscription
   GROUP BY userid
 ),
 jan_regs AS (
-  SELECT u.userid, u.name, f.registration_date
-  FROM users u
-  JOIN first_reg f USING (userid)
-  WHERE date_part('month', f.registration_date) = 1
+  SELECT users.userid, users.name, first_reg.registration_date
+  FROM users
+  JOIN first_reg USING (userid)
+  WHERE date_part('month', first_reg.registration_date) = 1
 )
 SELECT
-  jr.name,
-  EVERY(fr.friendid IS NOT NULL) AS has_friend,
-  jr.registration_date AS registration_date
-FROM jan_regs jr
-LEFT JOIN friend fr ON fr.userid = jr.userid
-GROUP BY jr.name, jr.registration_date
-ORDER BY jr.name;
+  jan_regs.name,
+  EVERY(friend.friendid IS NOT NULL) AS has_friend,
+  jan_regs.registration_date AS registration_date
+FROM jan_regs
+LEFT JOIN friend ON friend.userid = jan_regs.userid
+GROUP BY jan_regs.name, jan_regs.registration_date
+ORDER BY jan_regs.name;
 </pre>
 
 ## Task5
@@ -132,36 +122,31 @@ ORDER BY jr.name;
 - Final SELECT outputs the entire chain.
 
 <pre>
-  WITH RECURSIVE friend_chain AS (
-  -- start with Anas
-  SELECT 
-    u.name,
-    f.userid,
-    f.friendid
-  FROM friend f
-  JOIN users u ON u.userid = f.userid
-  WHERE f.userid = 20
+WITH RECURSIVE friend_chain(name, user_id, friend_id) AS (
+    SELECT
+        users.name,
+        users.userid,
+        friend.friendid
+    FROM users
+    LEFT JOIN friend ON friend.userid = users.userid
+    WHERE users.userid = 20
 
-  UNION ALL
+    UNION ALL
 
-  -- keep finding the next friend in the chain
-  SELECT 
-    u.name,
-    f.userid,
-    f.friendid
-  FROM friend f
-  JOIN users u ON u.userid = f.userid
-  JOIN friend_chain c ON f.userid = c.friendid
-  WHERE NOT EXISTS (
-    SELECT 1
-    FROM friend skip
-    WHERE skip.userid = c.userid
-      AND skip.friendid = f.friendid
-  )
+    SELECT
+        users.name,
+        users.userid,
+        friend.friendid
+    FROM friend_chain
+    JOIN users ON users.userid = friend_chain.friend_id
+    LEFT JOIN friend ON friend.userid = users.userid
+    WHERE friend_chain.friend_id IS NOT NULL
 )
-
-SELECT * FROM friend_chain;
-
+SELECT
+    name,
+    user_id,
+    friend_id
+FROM friend_chain;
 </pre>
 
 ## P+ Assignment
@@ -174,10 +159,7 @@ SELECT * FROM friend_chain;
 
 <pre>
 WITH march_post_cte AS (
-SELECT
-    postid,
-    userid,
-    date
+SELECT postid, userid, date
 FROM post
 WHERE date_part('month', post.date) = 3
 )
